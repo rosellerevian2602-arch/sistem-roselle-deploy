@@ -1,0 +1,168 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Sistem Pembelian Kredit - Integrated Purchase System
+
+model Supplier {
+  id          String   @id @default(cuid())
+  kode        String   @unique
+  nama        String
+  alamat      String
+  telepon     String?
+  email       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relasi
+  barang      Barang[]
+  pembelian   Pembelian[]
+  
+  @@map("suppliers")
+}
+
+model Barang {
+  id            String   @id @default(cuid())
+  kode          String   @unique
+  nama          String
+  deskripsi     String?
+  harga         Float
+  stok          Int      @default(0)
+  satuan        String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  // Relasi
+  supplierId    String?
+  supplier      Supplier? @relation(fields: [supplierId], references: [id])
+  detailPembelian DetailPembelian[]
+  detailPenerimaan DetailPenerimaan[]
+  permintaanPembelian PermintaanPembelian[]
+  
+  @@map("barang")
+}
+
+model Pembelian {
+  id              String   @id @default(cuid())
+  nomor           String   @unique
+  tanggal         DateTime @default(now())
+  status          String   @default("DRAFT") // DRAFT, APPROVED, SENT, RECEIVED, COMPLETED
+  supplierId      String
+  totalHarga      Float    @default(0)
+  catatan         String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Relasi
+  supplier        Supplier @relation(fields: [supplierId], references: [id])
+  detailPembelian DetailPembelian[]
+  suratJalan      SuratJalan[]
+  faktur          Faktur[]
+  
+  @@map("pembelian")
+}
+
+model DetailPembelian {
+  id              String   @id @default(cuid())
+  pembelianId     String
+  barangId        String
+  kuantitas       Int
+  hargaSatuan     Float
+  totalHarga      Float
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Relasi
+  pembelian       Pembelian @relation(fields: [pembelianId], references: [id], onDelete: Cascade)
+  barang          Barang   @relation(fields: [barangId], references: [id])
+  
+  @@map("detail_pembelian")
+}
+
+model SuratJalan {
+  id              String   @id @default(cuid())
+  nomor           String   @unique
+  tanggal         DateTime @default(now())
+  pembelianId     String
+  status          String   @default("DRAFT") // DRAFT, SENT, RECEIVED, VERIFIED
+  pengirim        String
+  penerima        String?
+  tanggalTerima   DateTime?
+  catatan         String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Relasi
+  pembelian       Pembelian @relation(fields: [pembelianId], references: [id])
+  detailPenerimaan DetailPenerimaan[]
+  
+  @@map("surat_jalan")
+}
+
+model DetailPenerimaan {
+  id              String   @id @default(cuid())
+  suratJalanId    String
+  barangId        String
+  kuantitasDikirim Int
+  kuantitasDiterima Int
+  keterangan      String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Relasi
+  suratJalan      SuratJalan @relation(fields: [suratJalanId], references: [id], onDelete: Cascade)
+  barang          Barang    @relation(fields: [barangId], references: [id])
+  
+  @@map("detail_penerimaan")
+}
+
+model Faktur {
+  id              String   @id @default(cuid())
+  nomor           String   @unique
+  tanggal         DateTime @default(now())
+  pembelianId     String
+  jumlahTagihan   Float
+  tanggalJatuhTempo DateTime
+  status          String   @default("UNPAID") // UNPAID, PAID, OVERDUE
+  catatan         String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Relasi
+  pembelian       Pembelian @relation(fields: [pembelianId], references: [id])
+  
+  @@map("faktur")
+}
+
+model PermintaanPembelian {
+  id              String   @id @default(cuid())
+  nomor           String   @unique
+  tanggal         DateTime @default(now())
+  departemen      String   // PRODUKSI, GUDANG, etc
+  pemohon         String
+  barangId        String
+  kuantitas       Int
+  kebutuhan       String
+  status          String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  catatan         String?
+  approvedBy      String?
+  approvedAt      DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Relasi
+  barang          Barang   @relation(fields: [barangId], references: [id])
+  
+  @@map("permintaan_pembelian")
+}
